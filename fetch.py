@@ -1,9 +1,17 @@
 import json, datetime as dt, requests
 
 URL = "https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryGetData/w"
-H = {"User-Agent": "Mozilla/5.0",
-     "Referer": "https://www.bseindia.com/",
-     "Origin": "https://www.bseindia.com"}
+S = requests.Session()
+S.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.bseindia.com/",
+    "Origin": "https://www.bseindia.com"})
+try:
+    S.get("https://www.bseindia.com/", timeout=30)
+except Exception as e:
+    print("warmup failed", e)
 
 wl = json.load(open("watchlist.json"))
 try:
@@ -17,12 +25,17 @@ to = today.strftime("%Y%m%d")
 
 new = []
 for c in wl:
-    r = requests.get(URL, headers=H, timeout=30, params={
-        "pageno": 1, "strCat": "-1", "strPrevDate": frm,
-        "strScrip": c["code"], "strSearch": "P",
-        "strToDate": to, "strType": "C"})
+    try:
+        r = S.get(URL, timeout=30, params={
+            "pageno": 1, "strCat": "-1", "strPrevDate": frm,
+            "strScrip": c["code"], "strSearch": "P",
+            "strToDate": to, "strType": "C"})
+    except Exception as e:
+        print(c["name"], "error", e)
+        continue
     print(c["name"], r.status_code)
-    r.raise_for_status()
+    if r.status_code != 200:
+        continue
     for a in r.json().get("Table", []):
         i = str(a.get("NEWSID"))
         if i in seen:
@@ -39,3 +52,4 @@ for c in wl:
 data = sorted(new + old, key=lambda x: x["date"] or "", reverse=True)[:1000]
 json.dump(data, open("data.json", "w"), indent=1)
 print("new items:", len(new))
+
